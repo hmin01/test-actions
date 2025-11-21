@@ -40,8 +40,9 @@ jobs:
       - name: Create a release tag
         uses: ncipollo/release-action@v1
         with:
-          tag: v${{ steps.get_version.outputs.version }}
+          generateReleaseNotes: true
           name: v${{ steps.get_version.outputs.version }}
           skipIfReleaseExists: true
+          tag: v${{ steps.get_version.outputs.version }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
