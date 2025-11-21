@@ -25,7 +25,7 @@ jobs:
       - name: Get a version number
         id: get_version
         run: |
-          VERSION=${node -p "require('./package.json').version"}
+          VERSION=$(node -p "require('./package.json').version")
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Create a tag
