@@ -99,6 +99,7 @@ jobs:
         uses: peter-evans/create-or-update-comment@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          issue-number: ${{ github.event.pull_request.number }}
           body: |
             ⚠️ 버전 검증에 실패했습니다.
 
@@ -109,6 +110,7 @@ jobs:
         uses: peter-evans/create-or-update-comment@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          issue-number: ${{ github.event.pull_request.number }}
           body: |
             ⚠️ 태그 중복 검증에 실패했습니다.
 
