@@ -65,33 +65,26 @@ jobs:
 
       - name: Verify version
         id: verify_version
-        continue-on-error: true
         run: |
           if [ -z "${{ steps.decode_version.outputs.version }}" ]; then
             echo "[Error] Version section is missing or empty in the PR template."
             echo "status=fail" >> $GITHUB_OUTPUT
-            exit 1
           elif ! [[ ${{ steps.decode_version.outputs.version }} =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "[Error] Version format is invalid. Expected format: X.Y.Z"
             echo "status=fail" >> $GITHUB_OUTPUT
-            exit 1
           else
             echo "status=success" >> $GITHUB_OUTPUT
-            exit 0
           fi
 
       - name: Check tag redundancy
         id: check_tag_redundancy
-        continue-on-error: true
         run: |
           git fetch --tags
           if git rev-parse -q --verify "refs/tags/v${{ steps.decode_version.outputs.version }}" >/dev/null; then
             echo "[Error] Tag v${{ steps.decode_version.outputs.version }} already exists."
             echo "status=fail" >> $GITHUB_OUTPUT
-            exit 1
           else
             echo "status=success" >> $GITHUB_OUTPUT
-            exit 0
           fi
 
       - name: Comment for version failure
@@ -115,6 +108,12 @@ jobs:
             ⚠️ 태그 중복 검증에 실패했습니다.
 
             해당 버전의 태그가 이미 존재합니다. 새로운 버전을 지정해 주세요. (현재 버전: v${{ steps.decode_version.outputs.version }})
+
+      - name: Check process result
+        if: steps.verify_version.outputs.status == 'fail' || steps.check_tag_redundancy.outputs.status == 'fail'
+        run: |
+          echo "[Error] 검증 프로세스 실패로 작업 중단."
+          exit 1
 
       - name: Add failure label
         if: failure()
