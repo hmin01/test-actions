@@ -1,15 +1,14 @@
-name: Create a release tag
+name: Verify PR template
 
 on:
   pull_request:
-    types: [closed]
+    types: [edited, opened, reopened, synchronize]
 
 jobs:
-  update_version:
-    if: github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'main'
+  verify_template:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      pull-requests: write
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -25,12 +24,12 @@ jobs:
       - name: Parse PR template
         id: parse_template
         env:
-          pr_body: ${{ github.event.pull_request.body}}
+          PR_BODY: ${{ github.event.pull_request.body }}
         run: |
-          node << EOF
+          node << 'EOF'
           const fs = require('fs');
 
-          const message = process.env.pr_body;
+          const message = process.env.PR_BODY;
 
           function extractSection(text, start, end = null) {
             const regex = end
@@ -77,23 +76,27 @@ jobs:
           elif ! [[ ${{ steps.decode_version.outputs.version }} =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "Error: Version format is invalid. Expected format: vX.Y.Z"
             exit 1
+          else
+            exit 0
           fi
 
-      - name: Create a tag
+      - name: Add failure label
+        if: failure()
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          git tag -a ${{ steps.decode_version.outputs.version }} -m "Update version (${{ steps.parse_template.outputs.version }})"
-
-          git push origin ${{ steps.decode_version.outputs.version }}
-
-      - name: Create a release
-        uses: ncipollo/release-action@v1
-        with:
-          generateReleaseNotes: true
-          name: v${{ steps.decode_version.outputs.version }}
-          skipIfReleaseExists: true
-          tag: v${{ steps.decode_version.outputs.version }}
+          LABEL_NAME="빌드실패"
+          LABEL_COLOR="FF0000"
+          # 레이블이 없으면 생성
+          if ! gh label list | grep -q "^$LABEL_NAME"; then
+            gh label create "$LABEL_NAME" --color "$LABEL_COLOR" --description "빌드 실패 레이블"
+          fi
+          # PR에 레이블 추가
+          gh pr edit ${{ github.event.pull_request.number }} --add-label "$LABEL_NAME"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Remove failure label (if success)
+        if: success()
+        uses: actions-ecosystem/action-remove-labels@v1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          labels: 빌드실패
