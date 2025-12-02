@@ -67,7 +67,7 @@ jobs:
         id: decode_version
         run: |
           VERSION_DECODED=$(echo "${{ steps.parse_template.outputs.version }}" | base64 --decode)
-          echo "version=$VERSION_DECODED"
+          echo "version=$VERSION_DECODED" >> $GITHUB_OUTPUT
 
       - name: Verify version
         run: |
