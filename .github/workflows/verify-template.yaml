@@ -2,7 +2,7 @@ name: Verify PR template
 
 on:
   pull_request:
-    types: [edited, opened, reopened]
+    types: [edited, opened, reopened, synchronize]
 
 jobs:
   verify_template:
