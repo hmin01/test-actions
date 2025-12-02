@@ -64,16 +64,59 @@ jobs:
           echo "version=$VERSION_DECODED" >> $GITHUB_OUTPUT
 
       - name: Verify version
+        id: verify_version
         run: |
           if [ -z "${{ steps.decode_version.outputs.version }}" ]; then
-            echo "Error: Version section is missing or empty in the PR template."
-            exit 1
+            echo "status=fail" >> $GITHUB_OUTPUT
           elif ! [[ ${{ steps.decode_version.outputs.version }} =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "Error: Version format is invalid. Expected format: X.Y.Z"
-            exit 1
+            echo "status=fail" >> $GITHUB_OUTPUT
           else
-            exit 0
+            echo "status=success" >> $GITHUB_OUTPUT
           fi
+
+      - name: Check tag redundancy
+        id: check_tag_redundancy
+        run: |
+          git fetch --tags
+          if git rev-parse -q --verify "refs/tags/v${{ steps.decode_version.outputs.version }}" >/dev/null; then
+            echo "status=fail" >> $GITHUB_OUTPUT
+          else
+            echo "status=success" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Comment for version failure
+        if: steps.verify_version.outputs.status == 'fail'
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          issue-number: ${{ github.event.pull_request.number }}
+          body: |
+            ⚠️ 버전 검증에 실패했습니다.
+
+            올바른 형식으로 Version 섹션을 작성해 주세요. 예시: `v1.2.3`
+
+      - name: Comment for tag redundancy failure
+        if: steps.check_tag_redundancy.outputs.status == 'fail'
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          issue-number: ${{ github.event.pull_request.number }}
+          body: |
+            ⚠️ 태그 중복 검증에 실패했습니다.
+
+            해당 버전의 태그가 이미 존재합니다. 새로운 버전을 지정해 주세요. (현재 버전: v${{ steps.decode_version.outputs.version }})
+
+      - name: Check process result
+        if: steps.verify_version.outputs.status == 'fail' || steps.check_tag_redundancy.outputs.status == 'fail'
+        run: |
+          if [ "${{ steps.verify_version.outputs.status }}" == "fail" ]; then
+            echo "[Error] Version verification failed. (version: ${{ steps.decode_version.outputs.version }})"
+          fi
+
+          if [ "${{ steps.check_tag_redundancy.outputs.status }}" == "fail" ]; then
+            echo "[Error] Tag redundancy check failed. (duplicated tag: v${{ steps.decode_version.outputs.version }})"
+          fi
+          exit 1
 
       - name: Add failure label
         if: failure()

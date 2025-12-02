@@ -69,9 +69,9 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          git tag -a ${{ steps.decode_version.outputs.version }} -m "Update version (${{ steps.parse_template.outputs.version }})"
+          git tag -a v${{ steps.decode_version.outputs.version }} -m "Update version (${{ steps.parse_template.outputs.version }})"
 
-          git push origin ${{ steps.decode_version.outputs.version }}
+          git push origin v${{ steps.decode_version.outputs.version }}
 
       - name: Create a release
         uses: ncipollo/release-action@v1
