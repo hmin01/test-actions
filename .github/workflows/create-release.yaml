@@ -46,19 +46,13 @@ jobs:
               .trim();
           }
 
-          function convertSlackLinks(text) {
-            return text.replace(/\[([^\]]+)\]\((https:\/\/[^\s)]+)\)/g,'<$2|$1>');
-          }
-
-          function cleanIndentation(text) {
-            return text
-              .split('\n')
-              .map(line => line.trim())
-              .join('\n');
+          function extractVersion(text) {
+            const _split = text.trim().split('v');
+            return _split.length > 1 ? _split[1].trim() : '';
           }
 
           // Extract and clean
-          const version = cleanIndentation(extractSection(message, 'Version', 'Summary'));
+          const version = extractVersion(extractSection(message, 'Version', 'Summary'));
           // base64 인코딩
           const encode = str => Buffer.from(str, 'utf-8').toString('base64');
           fs.appendFileSync(process.env.GITHUB_OUTPUT, `version=${encode(version)}\n`);
