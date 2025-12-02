@@ -6,6 +6,7 @@ on:
 
 jobs:
   verify_template:
+    name: Verify PR Template
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
