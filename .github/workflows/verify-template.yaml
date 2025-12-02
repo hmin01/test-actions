@@ -2,7 +2,7 @@ name: Verify PR template
 
 on:
   pull_request:
-    types: [opened, reopened]
+    types: [edited, opened, reopened]
 
 jobs:
   verify_template:
@@ -22,7 +22,7 @@ jobs:
       - name: Parse PR template
         id: parse_template
         env:
-          pr_body: ${{ github.event.pull_request.body}}
+          pr_body: ${{ github.event.pull_request.body }}
         run: |
           node << EOF
           const fs = require('fs');
