@@ -1,12 +1,12 @@
 name: Create a release tag
 
 on:
-  push:
-    branches: ["main"]
-    tags: ["v*.*.*"]
+  pull_request:
+    types: [closed]
 
 jobs:
   update_version:
+    if: github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'main'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -22,27 +22,78 @@ jobs:
           node-version: 20
           cache: "yarn"
 
-      - name: Get a version number
-        id: get_version
+      - name: Parse PR template
+        id: parse_template
+        env:
+          pr_body: ${{ github.event.pull_request.body}}
         run: |
-          VERSION=$(node -p "require('./package.json').version")
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          node << EOF
+          const fs = require('fs');
+
+          const message = process.env.pr_body;
+
+          function extractSection(text, start, end = null) {
+            const regex = end
+              ? new RegExp('## ' + start + '[\\s\\S]*?(?=## ' + end + '|$)', 'g')
+              : new RegExp('## ' + start + '[\\s\\S]*', 'g');
+            const match = text.match(regex);
+            if (!match) return '';
+            return match[0]
+              .replace(new RegExp('## ' + start, 'g'), '')
+              .replace(/<!--[\s\S]*?-->/g, '')
+              .replace(/\n{2,}/g, '\n')
+              .trim();
+          }
+
+          function convertSlackLinks(text) {
+            return text.replace(/\[([^\]]+)\]\((https:\/\/[^\s)]+)\)/g,'<$2|$1>');
+          }
+
+          function cleanIndentation(text) {
+            return text
+              .split('\n')
+              .map(line => line.trim())
+              .join('\n');
+          }
+
+          // Extract and clean
+          const version = cleanIndentation(extractSection(message, 'Version', 'Summary'));
+          // base64 인코딩
+          const encode = str => Buffer.from(str, 'utf-8').toString('base64');
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `version=${encode(version)}\n`);
+          EOF
+
+      - name: Decode version
+        id: decode_version
+        run: |
+          VERSION_DECODED=$(echo "${{ steps.parse_template.outputs.version }}" | base64 --decode)
+          echo "version=$VERSION_DECODED"
+
+      - name: Verify version
+        run: |
+          if [ -z "${{ steps.decode_version.outputs.version }}" ]; then
+            echo "Error: Version section is missing or empty in the PR template."
+            exit 1
+          elif ! [[ "${VERSION_DECODED}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Error: Version format is invalid. Expected format: vX.Y.Z"
+            exit 1
+          fi
 
       - name: Create a tag
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          git tag -a v${{ steps.get_version.outputs.version }} -m "${{ github.event.commits[0].message }}"
+          git tag -a ${{ steps.decode_version.outputs.version }} -m "Update version (${{ steps.parse_template.outputs.version }})"
 
-          git push origin v${{ steps.get_version.outputs.version }}
+          git push origin ${{ steps.decode_version.outputs.version }}
 
-      - name: Create a release tag
+      - name: Create a release
         uses: ncipollo/release-action@v1
         with:
           generateReleaseNotes: true
-          name: v${{ steps.get_version.outputs.version }}
+          name: v${{ steps.decode_version.outputs.version }}
           skipIfReleaseExists: true
-          tag: v${{ steps.get_version.outputs.version }}
+          tag: v${{ steps.decode_version.outputs.version }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
