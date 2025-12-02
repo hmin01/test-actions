@@ -109,11 +109,11 @@ jobs:
       - name: Check process result
         if: steps.verify_version.outputs.status == 'fail' || steps.check_tag_redundancy.outputs.status == 'fail'
         run: |
-          if [ "${{ steps.verify_version.outputs.status }}" == "fail" ] then
+          if [ "${{ steps.verify_version.outputs.status }}" == "fail" ]; then
             echo "[Error] Version verification failed. (version: ${{ steps.decode_version.outputs.version }})"
           fi
 
-          if [ "${{ steps.check_tag_redundancy.outputs.status }}" == "fail" ] then
+          if [ "${{ steps.check_tag_redundancy.outputs.status }}" == "fail" ]; then
             echo "[Error] Tag redundancy check failed. (duplicated tag: v${{ steps.decode_version.outputs.version }})"
           fi
           exit 1
