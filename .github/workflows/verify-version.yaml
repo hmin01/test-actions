@@ -32,7 +32,7 @@ jobs:
                   echo "Package version: $PACKAGE_VERSION"
                   echo "package_version=$PACKAGE_VERSION" >> $GITHUB_OUTPUT
 
-                  RAW_LATEST_TAG_VERSION=$(git describe $(git rev-list origin/main --tags --max-count=1))
+                  RAW_LATEST_TAG_VERSION=$(git describe --abbrev=0 origin/main)
                   LATEST_TAG_VERSION=${RAW_LATEST_TAG_VERSION#v}
                   echo "Latest tag version: $LATEST_TAG_VERSION"
                   echo "latest_tag_version=$LATEST_TAG_VERSION" >> $GITHUB_OUTPUT
