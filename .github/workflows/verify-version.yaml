@@ -87,6 +87,8 @@ jobs:
                       fi
                       # Add the label to the PR
                       gh pr edit ${{ github.event.pull_request.number }} --add-label "$LABEL_NAME"
+
+                      exit 1
                   fi
 
             - name: Remove merge conflict label (if no conflict)
