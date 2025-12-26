@@ -81,7 +81,7 @@ jobs:
                   # If there's a failure, add the label
                   if [ "$FAILURE" = true ]; then
                       # Check if the label exists; if not, create it
-                      if [ ! gh label list | grep -q "^$LABEL_NAME"; ] then
+                      if [ ! gh label list | grep -q "^$LABEL_NAME" ]; then
                           gh label create "$LABEL_NAME" --color FF0000 --description "$LABEL_NAME"
                       fi
                       # Add the label to the PR
