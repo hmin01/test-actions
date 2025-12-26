@@ -23,62 +23,40 @@ jobs:
           node-version: 20
           cache: "yarn"
 
-      - name: Parse PR template
-        id: parse_template
-        env:
-          PR_BODY: ${{ github.event.pull_request.body }}
+      - name: Update version
+        id: update_version
         run: |
-          node << 'EOF'
-          const fs = require('fs');
+          # Update the version
+          yarn version --patch --no-git-tag-version
 
-          const message = process.env.PR_BODY;
+          # Get the new version
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
 
-          function extractSection(text, start, end = null) {
-            const regex = end
-              ? new RegExp('## ' + start + '[\\s\\S]*?(?=## ' + end + '|$)', 'g')
-              : new RegExp('## ' + start + '[\\s\\S]*', 'g');
-            const match = text.match(regex);
-            if (!match) return '';
-            return match[0]
-              .replace(new RegExp('## ' + start, 'g'), '')
-              .replace(/<!--[\s\S]*?-->/g, '')
-              .replace(/\n{2,}/g, '\n')
-              .trim();
-          }
+          # Configure git
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          function extractVersion(text) {
-            const _split = text.trim().split('v');
-            return _split.length > 1 ? _split[1].trim() : '';
-          }
-
-          // Extract and clean
-          const version = extractVersion(extractSection(message, 'Version', 'Summary'));
-          // base64 인코딩
-          const encode = str => Buffer.from(str, 'utf-8').toString('base64');
-          fs.appendFileSync(process.env.GITHUB_OUTPUT, `version=${encode(version)}\n`);
-          EOF
-
-      - name: Decode version
-        id: decode_version
-        run: |
-          VERSION_DECODED=$(echo "${{ steps.parse_template.outputs.version }}" | base64 --decode)
-          echo "version=$VERSION_DECODED" >> $GITHUB_OUTPUT
+          # Commit the version change
+          git add package.json
+          git commit -m "chore: Update version ($VERSION)"
+          git push origin HEAD:main
 
       - name: Create a tag
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          git tag -a v${{ steps.decode_version.outputs.version }} -m "Update version (${{ steps.parse_template.outputs.version }})"
-
-          git push origin v${{ steps.decode_version.outputs.version }}
+          git tag -a v${{ steps.update_version.outputs.version }} -m "Update version (${{ steps.update_version.outputs.version }})"
+          git push origin v${{ steps.update_version.outputs.version }}
 
       - name: Create a release
         uses: ncipollo/release-action@v1
         with:
           generateReleaseNotes: true
-          name: v${{ steps.decode_version.outputs.version }}
+          name: v${{ steps.update_version.outputs.version }}
           skipIfReleaseExists: true
-          tag: v${{ steps.decode_version.outputs.version }}
+          tag: v${{ steps.update_version.outputs.version }}
+          makeLatest: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
