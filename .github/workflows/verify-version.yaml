@@ -63,30 +63,41 @@ jobs:
                       현재 `package.json`의 버전 `v${{ steps.get_versions.outputs.package_version }}`이(가) 최신 태그 버전 `v${{ steps.get_versions.outputs.latest_tag_version }}`과(와) 일치하지 않습니다.
                       버전을 확인하고 업데이트해 주세요.
 
-            - name: Set failure status
-              if: steps.compare_versions.outputs.status == 'fail'
-              run: |
-                  echo "Version verification failed."
-                  exit 1
-              env:
-                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
             - name: Add failure label
-              if: failure()
-              run: |
-                  LABEL_NAME="버전 불일치"
-                  LABEL_COLOR="FF0000"
-                  # 레이블이 없으면 생성
-                  if ! gh label list | grep -q "^$LABEL_NAME"; then
-                    gh label create "$LABEL_NAME" --color "$LABEL_COLOR" --description "버전 불일치"
-                  fi
-                  # PR에 레이블 추가
-                  gh pr edit ${{ github.event.pull_request.number }} --add-label "$LABEL_NAME"
+              if: github.event.pull_request.mergeable == 'CONFLICTING'
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              run: |
+                  FAILURE=false
 
-            - name: Remove failure label (if success)
-              if: success()
+                  # Determine which label to add
+                  if [ "${{ steps.compare_versions.outputs.status }}" == "fail" ]; then
+                      LABEL_NAME="버전 불일치"
+                      FAILURE=true
+                  elif [ "${{ github.event.pull_request.mergeable }}" == "CONFLICTING" ]; then
+                      LABEL_NAME="코드 충돌"
+                      FAILURE=true
+                  fi
+
+                  # If there's a failure, add the label
+                  if [ "$FAILURE" = true ]; then
+                      # Check if the label exists; if not, create it
+                      if [ ! gh label list | grep -q "^$LABEL_NAME"; ] then
+                          gh label create "$LABEL_NAME" --color FF0000 --description "$LABEL_NAME"
+                      fi
+                      # Add the label to the PR
+                      gh pr edit ${{ github.event.pull_request.number }} --add-label "$LABEL_NAME"
+                  fi
+
+            - name: Remove merge conflict label (if no conflict)
+              if: github.event.pull_request.mergeable != 'CONFLICTING'
+              uses: actions-ecosystem/action-remove-labels@v1
+              with:
+                  github_token: ${{ secrets.GITHUB_TOKEN }}
+                  labels: 코드 충돌
+
+            - name: Remove version mismatch label (if success)
+              if: steps.compare_versions.outputs.status == 'success'
               uses: actions-ecosystem/action-remove-labels@v1
               with:
                   github_token: ${{ secrets.GITHUB_TOKEN }}
