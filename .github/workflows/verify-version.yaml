@@ -1,0 +1,105 @@
+name: Verify version
+
+on:
+    pull_request:
+        branches: ['main']
+        types: [edited, opened, ready_for_review, reopened, synchronize]
+
+jobs:
+    verify_version:
+        name: Verify version
+        runs-on: ubuntu-latest
+        if: github.event.pull_request.draft == false
+        permissions:
+            contents: read
+            pull-requests: write
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v5
+              with:
+                  fetch-depth: 0
+
+            - name: Setup node.js
+              uses: actions/setup-node@v5
+              with:
+                  node-version: 20
+                  cache: 'yarn'
+
+            - name: Get versions
+              id: get_versions
+              run: |
+                  PACKAGE_VERSION=$(node -p "require('./package.json').version")
+                  echo "Package version: $PACKAGE_VERSION"
+                  echo "package_version=$PACKAGE_VERSION" >> $GITHUB_OUTPUT
+
+                  RAW_LATEST_TAG_VERSION=$(git describe $(git rev-list origin/main --tags --max-count=1))
+                  LATEST_TAG_VERSION=${RAW_LATEST_TAG_VERSION#v}
+                  echo "Latest tag version: $LATEST_TAG_VERSION"
+                  echo "latest_tag_version=$LATEST_TAG_VERSION" >> $GITHUB_OUTPUT
+
+            - name: Compare versions
+              id: compare_versions
+              run: |
+                  PACKAGE_VERSION=${{ steps.get_versions.outputs.package_version }}
+                  LATEST_TAG_VERSION=${{ steps.get_versions.outputs.latest_tag_version }}
+
+                  if [ "$PACKAGE_VERSION" != "$LATEST_TAG_VERSION" ]; then
+                      echo "Version mismatch: package.json version ($PACKAGE_VERSION) is different from latest tag version ($LATEST_TAG_VERSION)."
+                      echo "status=fail" >> $GITHUB_OUTPUT
+                  else
+                      echo "Versions match: $PACKAGE_VERSION"
+                      echo "status=success" >> $GITHUB_OUTPUT
+                  fi
+
+            - name: Comment for version mismatch
+              if: steps.compare_versions.outputs.status == 'fail'
+              uses: peter-evans/create-or-update-comment@v4
+              with:
+                  token: ${{ secrets.GITHUB_TOKEN }}
+                  issue-number: ${{ github.event.pull_request.number }}
+                  body: |
+                      ⚠️ 버전 불일치
+
+                      현재 `package.json`의 버전 `v${{ steps.get_versions.outputs.package_version }}`이(가) 최신 태그 버전 `v${{ steps.get_versions.outputs.latest_tag_version }}`과(와) 일치하지 않습니다.
+                      버전을 확인하고 업데이트해 주세요.
+
+            - name: Add failure label
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              run: |
+                  FAILURE=false
+
+                  # Determine which label to add
+                  if [ "${{ steps.compare_versions.outputs.status }}" == "fail" ]; then
+                      LABEL_NAME="버전 불일치"
+                      FAILURE=true
+                  elif [ "${{ github.event.pull_request.mergeable }}" == "CONFLICTING" ]; then
+                      LABEL_NAME="코드 충돌"
+                      FAILURE=true
+                  fi
+
+                  # If there's a failure, add the label
+                  if [ "$FAILURE" = true ]; then
+                      # Check if the label exists; if not, create it
+                      if [ ! gh label list | grep -q "^$LABEL_NAME" ]; then
+                          gh label create "$LABEL_NAME" --color FF0000 --description "$LABEL_NAME"
+                      fi
+                      # Add the label to the PR
+                      gh pr edit ${{ github.event.pull_request.number }} --add-label "$LABEL_NAME"
+
+                      exit 1
+                  fi
+
+            - name: Remove merge conflict label (if no conflict)
+              if: github.event.pull_request.mergeable != 'CONFLICTING'
+              uses: actions-ecosystem/action-remove-labels@v1
+              with:
+                  github_token: ${{ secrets.GITHUB_TOKEN }}
+                  labels: 코드 충돌
+
+            - name: Remove version mismatch label (if success)
+              if: steps.compare_versions.outputs.status == 'success'
+              uses: actions-ecosystem/action-remove-labels@v1
+              with:
+                  github_token: ${{ secrets.GITHUB_TOKEN }}
+                  labels: 버전 불일치
