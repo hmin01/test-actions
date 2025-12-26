@@ -40,7 +40,7 @@ jobs:
           # Commit the version change
           git add package.json
           git commit -m "chore: Update version ($VERSION)"
-          git push origin HEAD:main
+          git push origin main
 
       - name: Create a tag
         run: |
