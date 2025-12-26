@@ -64,7 +64,6 @@ jobs:
                       버전을 확인하고 업데이트해 주세요.
 
             - name: Add failure label
-              if: github.event.pull_request.mergeable == 'CONFLICTING'
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
               run: |
