@@ -1,0 +1,118 @@
+name: Auto version update
+
+on:
+    pull_request:
+        branches: ['main']
+        types: [closed]
+
+jobs:
+    create_branch:
+        name: Create a branch
+        if: github.event.pull_request.merged == true
+        runs-on: ubuntu-latest
+        permissions:
+            contents: write
+        outputs:
+            branch: ${{ steps.create_branch.outputs.branch }}
+            version: ${{ steps.get_version.outputs.version }}
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v6
+              with:
+                  fetch-depth: 0
+
+            - name: Setup node.js
+              uses: actions/setup-node@v5
+              with:
+                  node-version: 20
+                  cache: 'yarn'
+
+            - name: Get version
+              id: get_version
+              run: |
+                  VERSION=$(node -p "require('./package.json').version")
+                  echo "Current version: $VERSION"
+                  echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+            - name: Create branch
+              id: create_branch
+              run: |
+                  git config user.name "github-actions[bot]"
+                  git config user.email "github-actions[bot]@users.noreply.github.com"
+
+                  BRANCH_NAME="release/update-version/v${{ steps.get_version.outputs.version }}"
+                  echo "branch=$BRANCH_NAME" >> $GITHUB_OUTPUT
+
+                  git checkout -b $BRANCH_NAME
+                  git push origin $BRANCH_NAME
+
+    update_version:
+        name: Update version
+        needs: create_branch
+        runs-on: ubuntu-latest
+        permissions:
+            contents: write
+        outputs:
+            new_version: ${{ steps.update_version.outputs.new_version }}
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v6
+              with:
+                  fetch-depth: 0
+                  ref: ${{ needs.create_branch.outputs.branch }}
+
+            - name: Setup node.js
+              uses: actions/setup-node@v5
+              with:
+                  node-version: 20
+                  cache: 'yarn'
+
+            - name: Update version
+              id: update_version
+              run: |
+                  # Update the version
+                  yarn version --patch --no-git-tag-version
+
+                  # Get the new version
+                  VERSION=$(node -p "require('./package.json').version")
+                  echo "new_version=$VERSION" >> $GITHUB_OUTPUT
+
+                  git config user.name "github-actions[bot]"
+                  git config user.email "github-actions[bot]@users.noreply.github.com"
+
+                  # Commit the version change
+                  git add package.json
+                  git commit -m "chore: Update version (v$VERSION)"
+
+                  git push origin ${{ needs.create_branch.outputs.branch }}
+            
+    create_pr:
+        name: Create pull request (Auto merge)
+        needs: [create_branch, update_version]
+        runs-on: ubuntu-latest
+        permissions:
+            contents: write
+            pull-requests: write
+        steps:
+            - name: Create a pull request
+              id: create_pr
+              uses: peter-evans/create-pull-request@v5
+              with:
+                  token: ${{ secrets.GITHUB_TOKEN }}
+                  base: main
+                  branch: ${{ needs.create_branch.outputs.branch }}
+                  commit-message: "chore: Update version (v${{ needs.create_branch.outputs.version }})"
+                  title: "chore: Update version (v${{ needs.create_branch.outputs.version }})"
+                  body: |
+                      Automated version update after merge.
+
+                      - Previous version: v${{ needs.create_branch.outputs.version }}
+                      - New version: v${{ needs.update_version.outputs.new_version }}
+            
+            - name: Auto merge PR
+              if: steps.create_pr.outputs.pull-request-operation == 'created'
+              uses: peter-evans/enable-pull-request-automerge@v3
+              with:
+                  github_token: ${{ secrets.GITHUB_TOKEN }}
+                  merge_method: rebase
+            
