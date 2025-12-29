@@ -108,7 +108,7 @@ jobs:
               run: |
                   LABEL_NAME="Automated"
 
-                  if [ ! gh label list | grep -q "^$LABEL_NAME" ]; then
+                  if ! gh label list | grep -q "^$LABEL_NAME"$'\t'; then
                       gh label create "$LABEL_NAME" --color 7057FF --description "$LABEL_NAME"
                   fi
 
