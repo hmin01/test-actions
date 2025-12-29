@@ -104,8 +104,10 @@ jobs:
 
             - name: Add label
               run: |
-                  if [ ! gh label list | grep -q "Automated" ]; then
-                      gh label create "Automated" --color 1d76db --description "automated merge PRs"
+                  LABEL_NAME="Automated"
+
+                  if [ ! gh label list | grep -q "^$LABEL_NAME" ]; then
+                      gh label create "$LABEL_NAME" --color 7057ff --description "$LABEL_NAME"
                   fi
 
             - name: Create a pull request
