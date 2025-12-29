@@ -19,12 +19,17 @@ jobs:
                   fetch-depth: 0
 
             - name: Skip verify for automated PRs
-              if: github.event.pull_request.draft == true || (startsWith(github.event.pull_request.head.ref, 'release/update-version') && contains(join(github.event.pull_request.labels.*.name, ','), 'Automated'))
+              id: skip_verify
               run: |
-                  echo "This is an automated PR for version update. Skipping verification."
-                  exit 0
+                  if [ "${{ github.event.pull_request.draft }}" = "true" ] || \
+                      (echo "${{ github.event.pull_request.head.ref }}" | grep -q "^release/update-version"); then
+                      echo "skip=true" >> $GITHUB_OUTPUT
+                  else
+                      echo "skip=false" >> $GITHUB_OUTPUT
+                  fi
 
             - name: Setup node.js
+              if: steps.skip_verify.outputs.skip != 'true'
               uses: actions/setup-node@v5
               with:
                   node-version: 20
@@ -32,6 +37,7 @@ jobs:
 
             - name: Get versions
               id: get_versions
+              if: steps.skip_verify.outputs.skip != 'true'
               run: |
                   PACKAGE_VERSION=$(node -p "require('./package.json').version")
                   echo "Package version: $PACKAGE_VERSION"
@@ -44,6 +50,7 @@ jobs:
 
             - name: Compare versions
               id: compare_versions
+              if: steps.skip_verify.outputs.skip != 'true'
               run: |
                   PACKAGE_VERSION=${{ steps.get_versions.outputs.package_version }}
                   LATEST_TAG_VERSION=${{ steps.get_versions.outputs.latest_tag_version }}
@@ -57,7 +64,7 @@ jobs:
                   fi
 
             - name: Comment for version mismatch
-              if: steps.compare_versions.outputs.status == 'fail'
+              if: steps.skip_verify.outputs.skip != 'true' && steps.compare_versions.outputs.status == 'fail'
               uses: peter-evans/create-or-update-comment@v4
               with:
                   token: ${{ secrets.GITHUB_TOKEN }}
@@ -71,6 +78,7 @@ jobs:
             - name: Add failure label
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              if: steps.skip_verify.outputs.skip != 'true'
               run: |
                   FAILURE=false
 
@@ -93,7 +101,7 @@ jobs:
                   fi
 
             - name: Remove version mismatch label (if success)
-              if: steps.compare_versions.outputs.status == 'success'
+              if: steps.skip_verify.outputs.skip != 'true' && steps.compare_versions.outputs.status == 'success'
               uses: actions-ecosystem/action-remove-labels@v1
               with:
                   github_token: ${{ secrets.GITHUB_TOKEN }}
