@@ -9,7 +9,6 @@ jobs:
     verify_version:
         name: Verify version
         runs-on: ubuntu-latest
-        if: github.event.pull_request.draft == false
         permissions:
             contents: read
             pull-requests: write
@@ -20,7 +19,7 @@ jobs:
                   fetch-depth: 0
 
             - name: Skip verify for automated PRs
-              if: startsWith(github.event.pull_request.head.ref, 'release/update-version') && contains(join(github.event.pull_request.labels.*.name, ','), 'Automated')
+              if: github.event.pull_request.draft == true || (startsWith(github.event.pull_request.head.ref, 'release/update-version') && contains(join(github.event.pull_request.labels.*.name, ','), 'Automated'))
               run: |
                   echo "This is an automated PR for version update. Skipping verification."
                   exit 0
