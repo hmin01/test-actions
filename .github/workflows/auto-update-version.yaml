@@ -110,9 +110,10 @@ jobs:
                       - New version: v${{ needs.update_version.outputs.new_version }}
             
             - name: Auto merge PR
-              if: steps.create_pr.outputs.pull-request-operation == 'created'
+              if: steps.create_pr.outputs.pull-request-operation == 'created' && steps.create_pr.outputs.pull-request-number != ''
               uses: peter-evans/enable-pull-request-automerge@v3
               with:
                   github_token: ${{ secrets.GITHUB_TOKEN }}
+                  pull-request-number: ${{ steps.create_pr.outputs.pull-request-number }}
                   merge_method: rebase
             
