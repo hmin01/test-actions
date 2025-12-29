@@ -8,7 +8,7 @@ on:
 jobs:
     create_branch:
         name: Create a branch
-        if: github.event.pull_request.merged == true
+        if: github.event.pull_request.merged == true && !startsWith(github.event.pull_request.head.ref, 'release/update-version')
         runs-on: ubuntu-latest
         permissions:
             contents: write
@@ -103,13 +103,15 @@ jobs:
                   ref: ${{ needs.create_branch.outputs.branch }}
 
             - name: Add label
+              id: add_label
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
               run: |
                   LABEL_NAME="Automated"
+                  echo "label=$LABEL_NAME" >> $GITHUB_OUTPUT
 
                   if ! gh label list | grep -q "^$LABEL_NAME"$'\t'; then
-                      gh label create "$LABEL_NAME" --color 7057FF --description "$LABEL_NAME"
+                      gh label create "$LABEL_NAME" --color 7057FF --description "Label for automated PRs created by GitHub Actions"
                   fi
 
             - name: Create a pull request
@@ -118,6 +120,7 @@ jobs:
                   PR_URL=$(gh pr create \
                     --base main \
                     --head ${{ needs.create_branch.outputs.branch }} \
+                    --label ${{ steps.add_label.outputs.label }} \
                     --title "chore: Update version (v${{ needs.update_version.outputs.new_version }})" \
                     --body "Automated version update after merge.
                     
