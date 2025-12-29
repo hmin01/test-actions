@@ -90,8 +90,9 @@ jobs:
         name: Create pull request (Auto merge)
         needs: [create_branch, update_version]
         runs-on: ubuntu-latest
+        environment: deploy
         env:
-            GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            GH_TOKEN: ${{ secrets.ACTION_PAT }}
         permissions:
             contents: write
             pull-requests: write
@@ -104,8 +105,6 @@ jobs:
 
             - name: Add label
               id: add_label
-              env:
-                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
               run: |
                   LABEL_NAME="Automated"
                   echo "label=$LABEL_NAME" >> $GITHUB_OUTPUT
