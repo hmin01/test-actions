@@ -103,11 +103,13 @@ jobs:
                   ref: ${{ needs.create_branch.outputs.branch }}
 
             - name: Add label
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
               run: |
                   LABEL_NAME="Automated"
 
                   if [ ! gh label list | grep -q "^$LABEL_NAME" ]; then
-                      gh label create "$LABEL_NAME" --color 7057ff --description "$LABEL_NAME"
+                      gh label create "$LABEL_NAME" --color 7057FF --description "$LABEL_NAME"
                   fi
 
             - name: Create a pull request
@@ -117,7 +119,6 @@ jobs:
                     --base main \
                     --head ${{ needs.create_branch.outputs.branch }} \
                     --title "chore: Update version (v${{ needs.update_version.outputs.new_version }})" \
-                    --label "Automated" \
                     --body "Automated version update after merge.
                     
                     - Previous version: v${{ needs.create_branch.outputs.version }}
