@@ -109,7 +109,6 @@ jobs:
                   base: main
                   branch: ${{ needs.create_branch.outputs.branch }}
                   commit-message: "chore: Update version (v${{ needs.create_branch.outputs.version }})"
-                  delete-branch: true
                   labels: |
                       Automated
                       Update Version
