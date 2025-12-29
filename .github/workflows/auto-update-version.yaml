@@ -115,7 +115,7 @@ jobs:
                     --base main \
                     --head ${{ needs.create_branch.outputs.branch }} \
                     --title "chore: Update version (v${{ needs.update_version.outputs.new_version }})" \
-                    --labels "Automated" \
+                    --label "Automated" \
                     --body "Automated version update after merge.
                     
                     - Previous version: v${{ needs.create_branch.outputs.version }}
