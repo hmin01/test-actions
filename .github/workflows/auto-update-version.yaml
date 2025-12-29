@@ -125,10 +125,7 @@ jobs:
                     - New version: v${{ needs.update_version.outputs.new_version }}")
 
                   echo "pr_url=$PR_URL" >> $GITHUB_OUTPUT
-            
-            - name: Auto approve PR
-              run: gh pr review --approve ${{ steps.create_pr.outputs.pr_url }}
-            
+
             - name: Enable auto merge
               run: gh pr merge "${{ steps.create_pr.outputs.pr_url }}" --auto --rebase
             
