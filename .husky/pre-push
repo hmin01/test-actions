@@ -1,0 +1,18 @@
+#!/bin/sh
+# 운영 브랜치(main)로의 직접 푸시를 방지하고,
+# 기능 브랜치(feature/*, feat/*)에서 푸시할 때는 빌드 스크립트를 실행하지 않고 푸시합니다.
+# 이외 모든 브랜치(stg/*, sync/*, hotfix/* 등)에서는 빌드 스크립트를 실행하여 코드 품질을 유지합니다.
+
+BRANCH_NAME=$(git rev-parse --abbrev-ref HEAD)
+
+# 운영 브랜치로의 직접 푸시 방지
+if [ "$BRANCH_NAME" == "main" ]; then
+  echo "[Warning] 운영(main) 브랜치는 직접 푸시할 수 없습니다."
+  exit 1
+fi
+
+# 기능 브랜치에서는 빌드 스크립트 실행하지 않음
+if echo "$BRANCH_NAME" | grep -E '^(feature/|feat/)' > /dev/null; then
+  echo "[Info] 기능 브랜치($BRANCH_NAME)에서는 빌드 검사 없이 푸시를 진행합니다."
+  exit 0
+fi
