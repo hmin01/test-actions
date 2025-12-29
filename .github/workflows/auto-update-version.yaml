@@ -8,7 +8,7 @@ on:
 jobs:
     create_branch:
         name: Create a branch
-        if: github.event.pull_request.merged == true
+        if: github.event.pull_request.merged == true && !startsWith(github.event.pull_request.head.ref, 'release/update-version')
         runs-on: ubuntu-latest
         permissions:
             contents: write
