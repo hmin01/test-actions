@@ -3,7 +3,7 @@ name: Verify version
 on:
     pull_request:
         branches: ['main']
-        types: [auto_merge_enabled, edited, opened, ready_for_review, reopened, synchronize]
+        types: [edited, opened, ready_for_review, reopened, synchronize]
 
 jobs:
     verify_version:
