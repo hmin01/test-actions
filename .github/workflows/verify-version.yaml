@@ -9,7 +9,7 @@ jobs:
     verify_version:
         name: Verify version
         runs-on: ubuntu-latest
-        if: github.event.pull_request.draft == false
+        if: github.event.pull_request.draft == false && !startsWith(github.event.pull_request.head.ref, 'release/update-version')
         permissions:
             contents: read
             pull-requests: write
