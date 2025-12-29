@@ -90,6 +90,8 @@ jobs:
         name: Create pull request (Auto merge)
         needs: [create_branch, update_version]
         runs-on: ubuntu-latest
+        env:
+            GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         permissions:
             contents: write
             pull-requests: write
@@ -117,12 +119,8 @@ jobs:
                   echo "pr_url=$PR_URL" >> $GITHUB_OUTPUT
             
             - name: Auto approve PR
-              env:
-                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
               run: gh pr review --approve ${{ steps.create_pr.outputs.pr_url }}
             
             - name: Enable auto merge
-              env:
-                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
               run: gh pr merge "${{ steps.create_pr.outputs.pr_url }}" --auto --rebase
             
