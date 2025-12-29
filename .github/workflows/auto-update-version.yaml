@@ -101,7 +101,13 @@ jobs:
               with:
                   fetch-depth: 0
                   ref: ${{ needs.create_branch.outputs.branch }}
-                  
+
+            - name: Add label
+              run: |
+                  if [ ! gh label list | grep -q "Automated" ]; then
+                      gh label create "Automated" --color 1d76db --description "automated merge PRs"
+                  fi
+
             - name: Create a pull request
               id: create_pr
               run: |
@@ -109,8 +115,7 @@ jobs:
                     --base main \
                     --head ${{ needs.create_branch.outputs.branch }} \
                     --title "chore: Update version (v${{ needs.update_version.outputs.new_version }})" \
-                    --label "Automated" \
-                    --label "Update version" \
+                    --labels "Automated" \
                     --body "Automated version update after merge.
                     
                     - Previous version: v${{ needs.create_branch.outputs.version }}
